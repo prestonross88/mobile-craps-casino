@@ -316,6 +316,11 @@
         const muteBtn = document.getElementById('mute-btn');
         const puckEl = document.getElementById('puck');
         const msgEl = document.getElementById('messages');
+        document.querySelectorAll('.bet-area[data-num]').forEach(el=>{
+          const m=document.createElement('span');
+          m.className='point-marker';m.textContent='\u2605';
+          el.appendChild(m);
+        });
         const totalEl = document.getElementById('roll-total');
         const die1El = document.getElementById('die1');
         const die2El = document.getElementById('die2');
@@ -366,6 +371,9 @@
         }
 
         function updateUI() {
+            document.querySelectorAll('.bet-area[data-num]').forEach(el=>{
+              el.classList.toggle('is-point',state.point===parseInt(el.dataset.num,10));
+            });
             bankrollEl.innerText = `$${bankroll}`;
             statsEl.innerText = `${rolls} ROLLS • BEST $${biggestWin}`;
             saveState();
