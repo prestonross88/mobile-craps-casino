@@ -1,6 +1,6 @@
 # Mobile Craps Casino
 
-![Gameplay screenshot](screenshot.jpg)
+![Preston's Club — Mobile Craps Casino](banner.svg)
 
 A full craps table built for your phone — roll the dice and work the felt.
 
