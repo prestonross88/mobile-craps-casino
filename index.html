@@ -161,6 +161,9 @@
         }
         .puck-off { background-color: white; }
         .puck-on { background-color: #000; color: white; border-color: white; }
+        .point-marker{position:absolute;top:2px;right:5px;font-size:18px;color:#ffd700;text-shadow:0 0 6px rgba(255,215,0,.9);display:none;pointer-events:none;line-height:1}
+        .bet-area.is-point{border-color:#ffd700 !important;box-shadow:0 0 14px rgba(255,215,0,.65),inset 0 0 10px rgba(255,215,0,.25)}
+        .bet-area.is-point .point-marker{display:block}
 
         #messages {
             text-shadow: 1px 1px 2px black;
@@ -316,7 +319,7 @@
         const muteBtn = document.getElementById('mute-btn');
         const puckEl = document.getElementById('puck');
         const msgEl = document.getElementById('messages');
-        document.querySelectorAll('.bet-area[data-num]').forEach(el=>{
+        document.querySelectorAll('.bet-area[data-bet^="place"]').forEach(el=>{
           const m=document.createElement('span');
           m.className='point-marker';m.textContent='\u2605';
           el.appendChild(m);
@@ -371,8 +374,9 @@
         }
 
         function updateUI() {
-            document.querySelectorAll('.bet-area[data-num]').forEach(el=>{
-              el.classList.toggle('is-point',point===parseInt(el.dataset.num,10));
+            document.querySelectorAll('.bet-area[data-bet^="place"]').forEach(el=>{
+              const n=parseInt(el.getAttribute('data-bet').replace('place',''),10);
+              el.classList.toggle('is-point',point===n);
             });
             bankrollEl.innerText = `$${bankroll}`;
             statsEl.innerText = `${rolls} ROLLS • BEST $${biggestWin}`;
