@@ -1,5 +1,7 @@
 # Mobile Craps Casino
 
+![Gameplay screenshot](screenshot.jpg)
+
 A full craps table built for your phone — roll the dice and work the felt.
 
 **Play it live:** https://prestonross88.github.io/mobile-craps-casino/
