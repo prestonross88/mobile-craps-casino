@@ -372,7 +372,7 @@
 
         function updateUI() {
             document.querySelectorAll('.bet-area[data-num]').forEach(el=>{
-              el.classList.toggle('is-point',state.point===parseInt(el.dataset.num,10));
+              el.classList.toggle('is-point',point===parseInt(el.dataset.num,10));
             });
             bankrollEl.innerText = `$${bankroll}`;
             statsEl.innerText = `${rolls} ROLLS • BEST $${biggestWin}`;
