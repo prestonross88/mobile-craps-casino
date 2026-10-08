@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Craps Casino</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --felt-color: #0E6A44;
+            --table-border: #3A2E20;
+            --line-color: #EADCA6;
+        }
+
+        body {
+            background-color: #111;
+            color: white;
+            font-family: 'Inter', -apple-system, sans-serif;
+            overscroll-behavior: none;
+            touch-action: manipulation;
+        }
+
+        .table-felt {
+            background-color: var(--felt-color);
+            border: 8px solid var(--table-border);
+            border-radius: 20px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+        }
+
+        .dice {
+            width: 60px;
+            height: 60px;
+            background-color: #E2252B; /* Casino red dice */
+            border-radius: 10px;
+            box-shadow: inset -2px -2px 10px rgba(0,0,0,0.3), 2px 2px 5px rgba(0,0,0,0.5);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            padding: 6px;
+            gap: 2px;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .dot {
+            background-color: white;
+            border-radius: 50%;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0px 2px 3px rgba(0,0,0,0.5);
+            visibility: hidden;
+        }
+
+        /* Dice Face Layouts */
+        .dice[data-value="1"] .dot:nth-child(5) { visibility: visible; }
+        .dice[data-value="2"] .dot:nth-child(1), .dice[data-value="2"] .dot:nth-child(9) { visibility: visible; }
+        .dice[data-value="3"] .dot:nth-child(1), .dice[data-value="3"] .dot:nth-child(5), .dice[data-value="3"] .dot:nth-child(9) { visibility: visible; }
+        .dice[data-value="4"] .dot:nth-child(1), .dice[data-value="4"] .dot:nth-child(3), .dice[data-value="4"] .dot:nth-child(7), .dice[data-value="4"] .dot:nth-child(9) { visibility: visible; }
+        .dice[data-value="5"] .dot:nth-child(1), .dice[data-value="5"] .dot:nth-child(3), .dice[data-value="5"] .dot:nth-child(5), .dice[data-value="5"] .dot:nth-child(7), .dice[data-value="5"] .dot:nth-child(9) { visibility: visible; }
+        .dice[data-value="6"] .dot:nth-child(1), .dice[data-value="6"] .dot:nth-child(3), .dice[data-value="6"] .dot:nth-child(4), .dice[data-value="6"] .dot:nth-child(6), .dice[data-value="6"] .dot:nth-child(7), .dice[data-value="6"] .dot:nth-child(9) { visibility: visible; }
+
+        @keyframes roll-anim {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.1) translateY(-10px); }
+            50% { transform: rotate(180deg) scale(1) translateY(0); }
+            75% { transform: rotate(270deg) scale(1.1) translateY(-10px); }
+            100% { transform: rotate(360deg) scale(1) translateY(0); }
+        }
+
+        .rolling {
+            animation: roll-anim 0.5s ease-in-out infinite;
+        }
+
+        .bet-area {
+            border: 2px solid var(--line-color);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        
+        .bet-area:active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .bet-area.remove-mode {
+            border-color: #f87171;
+            border-style: dashed;
+        }
+
+        .bet-text {
+            color: var(--line-color);
+            font-weight: 700;
+            text-transform: uppercase;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+
+        /* Chips */
+        .chip {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 4px dashed white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            transition: transform 0.1s;
+        }
+        .chip-selector { cursor: pointer; }
+        .chip-selector.selected {
+            transform: scale(1.15) translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.6);
+            border-style: solid;
+        }
+
+        .chip-1 { background-color: #f1f5f9; color: #333; border-color: #cbd5e1; }
+        .chip-5 { background-color: #ef4444; color: white; border-color: #b91c1c; }
+        .chip-25 { background-color: #22c55e; color: white; border-color: #15803d; }
+        .chip-100 { background-color: #1e293b; color: white; border-color: #0f172a; }
+
+        .placed-chip {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            /* Centered overlay */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            font-size: 11px;
+            border-width: 2px;
+        }
+        /* Shrink label so big bets don't overflow the chip */
+        .placed-chip.long {
+            font-size: 8px;
+            letter-spacing: 0;
+        }
+
+        .puck {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 4px solid black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 16px;
+            color: black;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+        }
+        .puck-off { background-color: white; }
+        .puck-on { background-color: #000; color: white; border-color: white; }
+
+        #messages {
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #remove-mode-btn.remove-on {
+            background-color: #b45309;
+            border-color: #92400e;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-full overflow-hidden">
+
+    <div class="flex justify-between items-center p-3 bg-neutral-900 shadow-md z-10">
+        <div class="flex flex-col">
+            <span class="text-xs text-gray-400 font-bold uppercase tracking-wider">Bankroll</span>
+            <span class="text-xl font-black text-green-400" id="bankroll-display">$1000</span>
+            <span class="text-[10px] text-gray-500 font-bold" id="stats-display">0 ROLLS • BEST $0</span>
+        </div>
+        <div class="flex gap-2 items-center">
+            <button id="remove-mode-btn" class="bg-neutral-700/80 text-white text-xs font-bold px-3 py-2 rounded shadow border border-neutral-600 active:bg-neutral-600 transition">
+                REMOVE: OFF
+            </button>
+            <button id="mute-btn" class="bg-neutral-700/80 text-white text-xs font-bold px-3 py-2 rounded shadow border border-neutral-600 active:bg-neutral-600 transition">🔊</button>
+            <button id="clear-bets-btn" class="bg-red-700/80 text-white text-xs font-bold px-3 py-2 rounded shadow border border-red-900 active:bg-red-800 transition">
+                CLEAR BETS
+            </button>
+        </div>
+    </div>
+
+    <div class="bg-neutral-800 p-2 border-b border-neutral-700 flex justify-center gap-4 z-10">
+        <div class="chip chip-1 chip-selector" data-val="1">$1</div>
+        <div class="chip chip-5 chip-selector selected" data-val="5">$5</div>
+        <div class="chip chip-25 chip-selector" data-val="25">$25</div>
+        <div class="chip chip-100 chip-selector" data-val="100">$100</div>
+    </div>
+
+    <div class="flex-1 flex flex-col items-center justify-start p-2 md:p-4 overflow-y-auto w-full relative">
+        
+        <!-- Dice & Status Area -->
+        <div class="w-full max-w-md flex justify-between items-center mb-4 px-2">
+            <!-- Puck -->
+            <div id="puck" class="puck puck-off">OFF</div>
+            
+            <!-- Dice -->
+            <div class="flex gap-4">
+                <div class="dice" id="die1" data-value="1">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+                <div class="dice" id="die2" data-value="1">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+            </div>
+
+            <!-- Last Roll -->
+            <div class="flex flex-col items-end">
+                <span class="text-xs text-gray-300 font-bold uppercase tracking-wider">Total</span>
+                <span class="text-3xl font-black text-white" id="roll-total">-</span>
+            </div>
+        </div>
+
+        <!-- System Messages -->
+        <div id="messages" class="h-8 w-full text-center text-yellow-300 font-bold mb-2 flex items-center justify-center text-sm px-2 transition-opacity duration-300">
+            Place your bets to start!
+        </div>
+
+        <div class="table-felt w-full max-w-md flex flex-col p-2 gap-2 relative">
+            
+            <!-- Place Bets Row -->
+            <div class="grid grid-cols-6 gap-1 h-16 w-full">
+                <div class="bet-area rounded-t-lg" data-bet="place4">
+                    <span class="bet-text text-lg">4</span>
+                </div>
+                <div class="bet-area rounded-t-lg" data-bet="place5">
+                    <span class="bet-text text-lg">5</span>
+                </div>
+                <div class="bet-area rounded-t-lg" data-bet="place6">
+                    <span class="bet-text text-lg">6</span>
+                </div>
+                <div class="bet-area rounded-t-lg" data-bet="place8">
+                    <span class="bet-text text-lg">8</span>
+                </div>
+                <div class="bet-area rounded-t-lg" data-bet="place9">
+                    <span class="bet-text text-lg">9</span>
+                </div>
+                <div class="bet-area rounded-t-lg" data-bet="place10">
+                    <span class="bet-text text-lg">10</span>
+                </div>
+            </div>
+
+            <!-- Field Bet -->
+            <div class="bet-area h-20 w-full" data-bet="field">
+                <div class="bet-text text-xl">FIELD</div>
+                <div class="text-[10px] text-[var(--line-color)] opacity-80 mt-1">2 · 3 · 4 · 9 · 10 · 11 · 12</div>
+                <div class="text-[9px] text-[var(--line-color)] opacity-80">(2 and 12 pay Double)</div>
+            </div>
+
+            <!-- Don't Pass Bar -->
+            <div class="bet-area h-14 w-full" data-bet="dontPass">
+                <div class="bet-text text-base">Don't Pass Bar</div>
+            </div>
+
+            <!-- Pass Line -->
+            <div class="bet-area h-16 w-full rounded-b-lg border-b-4" data-bet="passLine">
+                <div class="bet-text text-xl">PASS LINE</div>
+            </div>
+            
+        </div>
+    </div>
+
+    <div class="p-4 bg-neutral-900 border-t border-neutral-700 z-10 w-full flex justify-center pb-8">
+        <button id="roll-btn" class="w-full max-w-md bg-green-600 hover:bg-green-500 active:bg-green-700 text-white font-black text-2xl py-4 rounded-xl shadow-[0_4px_0_rgb(21,128,61)] active:shadow-[0_0px_0_rgb(21,128,61)] active:translate-y-1 transition-all">
+            ROLL DICE
+        </button>
+    </div>
+
+    <script>
+        // v1.1: persistence, session stats, remove mode, sound, keyboard roll
+        // State
+        let bankroll = 1000;
+        let currentChip = 5;
+        let point = null; // null means come out roll
+        let isRolling = false;
+        let removeMode = false;
+        let rolls = 0, biggestWin = 0;
+        let muted = false;
+        let audioCtx = null;
+        const STORE_KEY = 'mobileCrapsCasino_v1';
+        
+        const bets = {
+            place4: 0, place5: 0, place6: 0, place8: 0, place9: 0, place10: 0,
+            field: 0,
+            dontPass: 0,
+            passLine: 0
+        };
+
+        const BET_LABELS = {
+            place4: 'Place 4', place5: 'Place 5', place6: 'Place 6',
+            place8: 'Place 8', place9: 'Place 9', place10: 'Place 10',
+            field: 'Field', dontPass: "Don't Pass", passLine: 'Pass Line'
+        };
+
+        // DOM Elements
+        const bankrollEl = document.getElementById('bankroll-display');
+        const statsEl = document.getElementById('stats-display');
+        const rollBtn = document.getElementById('roll-btn');
+        const clearBtn = document.getElementById('clear-bets-btn');
+        const removeBtn = document.getElementById('remove-mode-btn');
+        const muteBtn = document.getElementById('mute-btn');
+        const puckEl = document.getElementById('puck');
+        const msgEl = document.getElementById('messages');
+        const totalEl = document.getElementById('roll-total');
+        const die1El = document.getElementById('die1');
+        const die2El = document.getElementById('die2');
+        const betAreas = document.querySelectorAll('.bet-area');
+        const chipSelectors = document.querySelectorAll('.chip-selector');
+
+        // --- Persistence ---
+        function saveState() {
+            try { localStorage.setItem(STORE_KEY, JSON.stringify({ bankroll, muted, rolls, biggestWin })); } catch(e){}
+        }
+        function loadState() {
+            try {
+                const s = JSON.parse(localStorage.getItem(STORE_KEY));
+                if (!s) return;
+                if (typeof s.bankroll === 'number' && s.bankroll >= 0) bankroll = Math.floor(s.bankroll);
+                if (typeof s.rolls === 'number' && s.rolls >= 0) rolls = Math.floor(s.rolls);
+                if (typeof s.biggestWin === 'number' && s.biggestWin >= 0) biggestWin = Math.floor(s.biggestWin);
+                muted = !!s.muted;
+            } catch(e){}
+        }
+
+        // --- Sound ---
+        function ensureAudio() {
+            if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function tone(f, d, type, g) {
+            if (muted) return;
+            try {
+                ensureAudio(); if (!audioCtx) return;
+                const o = audioCtx.createOscillator(), n = audioCtx.createGain();
+                o.type = type || 'sine';
+                o.frequency.setValueAtTime(f, audioCtx.currentTime);
+                n.gain.setValueAtTime(g || 0.05, audioCtx.currentTime);
+                n.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+                o.connect(n); n.connect(audioCtx.destination);
+                o.start(); o.stop(audioCtx.currentTime + d);
+            } catch(e){}
+        }
+        function sfxBet() { tone(650, 0.06, 'triangle', 0.05); }
+        function sfxRoll() { [180, 140, 200, 160].forEach((f, i) => setTimeout(() => tone(f, 0.05, 'square', 0.03), i * 90)); }
+        function sfxWin() { tone(523, 0.12); setTimeout(() => tone(784, 0.18), 110); }
+        function sfxLose() { tone(160, 0.25, 'sawtooth', 0.05); }
+        function toggleMute() {
+            muted = !muted;
+            muteBtn.innerText = muted ? '🔇' : '🔊';
+            saveState();
+        }
+
+        function updateUI() {
+            bankrollEl.innerText = `$${bankroll}`;
+            statsEl.innerText = `${rolls} ROLLS • BEST $${biggestWin}`;
+            saveState();
+            
+            // Update Puck
+            if (point === null) {
+                puckEl.innerText = 'OFF';
+                puckEl.className = 'puck puck-off';
+            } else {
+                puckEl.innerText = point;
+                puckEl.className = 'puck puck-on';
+            }
+
+            // Update Bet Chips on Board
+            betAreas.forEach(area => {
+                const betType = area.getAttribute('data-bet');
+                const amount = bets[betType];
+                
+                // Remove existing chip marker
+                const existing = area.querySelector('.placed-chip');
+                if (existing) existing.remove();
+
+                if (amount > 0) {
+                    const chipEl = document.createElement('div');
+                    // Determine color based on rough size for visual flair
+                    let colorClass = 'chip-1';
+                    if (amount >= 100) colorClass = 'chip-100';
+                    else if (amount >= 25) colorClass = 'chip-25';
+                    else if (amount >= 5) colorClass = 'chip-5';
+
+                    chipEl.className = `chip placed-chip ${colorClass}` + (amount >= 1000 ? ' long' : '');
+                    chipEl.innerText = `$${amount}`;
+                    area.appendChild(chipEl);
+                }
+
+                area.classList.toggle('remove-mode', removeMode);
+            });
+        }
+
+        function showMessage(msg, isAlert = false) {
+            msgEl.innerText = msg;
+            msgEl.style.color = isAlert ? '#ef4444' : '#fde047';
+            msgEl.style.opacity = 0;
+            setTimeout(() => msgEl.style.opacity = 1, 50);
+        }
+
+        function selectChip(val, el) {
+            chipSelectors.forEach(c => c.classList.remove('selected'));
+            el.classList.add('selected');
+            currentChip = val;
+        }
+
+        chipSelectors.forEach(chip => {
+            chip.addEventListener('click', (e) => {
+                selectChip(parseInt(e.currentTarget.getAttribute('data-val')), e.currentTarget);
+                sfxBet();
+            });
+        });
+
+        function toggleRemoveMode() {
+            removeMode = !removeMode;
+            removeBtn.innerText = removeMode ? 'REMOVE: ON' : 'REMOVE: OFF';
+            removeBtn.classList.toggle('remove-on', removeMode);
+            showMessage(removeMode ? 'Remove mode: tap a bet to take it down' : 'Remove mode off');
+            updateUI();
+        }
+
+        function handleBetAreaClick(betType) {
+            if (isRolling) return;
+
+            const lockedLineBet = (betType === 'passLine' || betType === 'dontPass') && point !== null;
+
+            if (removeMode) {
+                if (lockedLineBet) {
+                    showMessage("Line bets are locked once the point is on", true);
+                    return;
+                }
+                if (bets[betType] > 0) {
+                    bankroll += bets[betType];
+                    showMessage(`${BET_LABELS[betType]} taken down ($${bets[betType]} returned)`);
+                    bets[betType] = 0;
+                    sfxBet();
+                    updateUI();
+                }
+                return;
+            }
+
+            // Enforce Pass/Don't Pass rules: Cannot add if point is ON (simplified standard rule)
+            if (lockedLineBet) {
+                showMessage("Cannot place line bets after point is established", true);
+                return;
+            }
+
+            if (bankroll >= currentChip) {
+                bankroll -= currentChip;
+                bets[betType] += currentChip;
+                sfxBet();
+                updateUI();
+            } else {
+                showMessage("Insufficient Bankroll!", true);
+            }
+        }
+
+        betAreas.forEach(area => {
+            area.addEventListener('click', () => handleBetAreaClick(area.getAttribute('data-bet')));
+        });
+
+        removeBtn.addEventListener('click', toggleRemoveMode);
+        muteBtn.addEventListener('click', toggleMute);
+
+        clearBtn.addEventListener('click', () => {
+            if (isRolling) return;
+            
+            // Refund allowed bets
+            let refunded = 0;
+            for (let key in bets) {
+                // Typically you can't remove pass/dont pass once point is established
+                if ((key === 'passLine' || key === 'dontPass') && point !== null && bets[key] > 0) {
+                    // Lock these bets, don't refund
+                    continue;
+                }
+                refunded += bets[key];
+                bets[key] = 0;
+            }
+            bankroll += refunded;
+            showMessage(`Bets cleared ($${refunded} returned)`);
+            updateUI();
+        });
+
+        function resolveBets(d1, d2) {
+            const sum = d1 + d2;
+            const bankrollBefore = bankroll;
+            let rollWinnings = 0;
+            let msgs = [];
+            rolls++;
+
+            // 1. Resolve Field Bet (One Roll)
+            if (bets.field > 0) {
+                if ([2, 3, 4, 9, 10, 11, 12].includes(sum)) {
+                    const mult = (sum === 2 || sum === 12) ? 2 : 1;
+                    const win = bets.field * mult;
+                    rollWinnings += (bets.field + win); // Bet + Winnings
+                    msgs.push(`Field wins $${win}`);
+                } else {
+                    msgs.push("Field loses");
+                }
+                bets.field = 0; // Cleared every roll
+            }
+
+            // 2. Resolve Come Out Roll (Point OFF)
+            if (point === null) {
+                // Place bets are OFF during come out roll (Standard Casino Rule)
+                
+                if (sum === 7 || sum === 11) {
+                    if (bets.passLine > 0) {
+                        rollWinnings += (bets.passLine * 2);
+                        msgs.push(`Pass Line wins $${bets.passLine}`);
+                        bets.passLine = 0;
+                    }
+                    if (bets.dontPass > 0) {
+                        msgs.push("Don't Pass loses");
+                        bets.dontPass = 0;
+                    }
+                } 
+                else if (sum === 2 || sum === 3 || sum === 12) {
+                    if (bets.passLine > 0) {
+                        msgs.push("Pass Line loses (Craps)");
+                        bets.passLine = 0;
+                    }
+                    if (bets.dontPass > 0) {
+                        if (sum === 12) {
+                            rollWinnings += bets.dontPass; // Push (returned)
+                            msgs.push("Don't Pass pushes on 12");
+                        } else {
+                            rollWinnings += (bets.dontPass * 2);
+                            msgs.push(`Don't Pass wins $${bets.dontPass}`);
+                        }
+                        bets.dontPass = 0;
+                    }
+                } 
+                else {
+                    // Establish Point
+                    point = sum;
+                    msgs.push(`Point is now ${point}`);
+                }
+            } 
+            // 3. Resolve Point Roll (Point ON)
+            else {
+                // Place Bets are working
+                if (sum === 7) {
+                    // Seven Out
+                    msgs.push("Seven Out!");
+                    if (bets.dontPass > 0) {
+                        rollWinnings += (bets.dontPass * 2);
+                        msgs.push(`Don't Pass wins $${bets.dontPass}`);
+                        bets.dontPass = 0;
+                    }
+                    if (bets.passLine > 0) {
+                        bets.passLine = 0;
+                    }
+                    
+                    // Clear all place bets
+                    ['place4', 'place5', 'place6', 'place8', 'place9', 'place10'].forEach(b => bets[b] = 0);
+                    
+                    point = null; // Reset Point
+                } 
+                else if (sum === point) {
+                    // Point Hit
+                    msgs.push(`Point Hit (${point})!`);
+                    if (bets.passLine > 0) {
+                        rollWinnings += (bets.passLine * 2);
+                        msgs.push(`Pass Line wins $${bets.passLine}`);
+                        bets.passLine = 0;
+                    }
+                    if (bets.dontPass > 0) {
+                        bets.dontPass = 0;
+                    }
+                    
+                    // Place bet for this number also wins
+                    if (bets[`place${sum}`] > 0) {
+                        const amt = bets[`place${sum}`];
+                        // True odds calculation approx
+                        let ratio = 1;
+                        if (sum === 6 || sum === 8) ratio = 7/6;
+                        else if (sum === 5 || sum === 9) ratio = 7/5;
+                        else if (sum === 4 || sum === 10) ratio = 9/5;
+                        
+                        const win = Math.floor(amt * ratio);
+                        rollWinnings += win; // Original bet stays up!
+                        msgs.push(`Place ${sum} pays $${win}`);
+                    }
+                    
+                    point = null; // Reset Point
+                }
+                else {
+                    // Other number, check place bets
+                    if ([4,5,6,8,9,10].includes(sum) && bets[`place${sum}`] > 0) {
+                        const amt = bets[`place${sum}`];
+                        let ratio = 1;
+                        if (sum === 6 || sum === 8) ratio = 7/6;
+                        else if (sum === 5 || sum === 9) ratio = 7/5;
+                        else if (sum === 4 || sum === 10) ratio = 9/5;
+                        
+                        const win = Math.floor(amt * ratio);
+                        rollWinnings += win; // Original bet stays up!
+                        msgs.push(`Place ${sum} pays $${win}`);
+                    }
+                }
+            }
+
+            bankroll += rollWinnings;
+            const profit = bankroll - bankrollBefore;
+            if (profit > biggestWin) biggestWin = profit;
+            if (profit > 0) sfxWin(); else if (profit < 0) sfxLose();
+            
+            if (msgs.length > 0) {
+                showMessage(msgs.join(" | "));
+            } else {
+                showMessage(`Rolled a ${sum}`);
+            }
+
+            updateUI();
+        }
+
+        function doRoll() {
+            // Validate minimum bet to make it fun, or just let them roll for free
+            let totalBet = Object.values(bets).reduce((a, b) => a + b, 0);
+            if (totalBet === 0 && point === null) {
+                showMessage("Place a bet to play!", true);
+                return;
+            }
+
+            if (isRolling) return;
+            isRolling = true;
+            rollBtn.disabled = true;
+            rollBtn.classList.add('opacity-50');
+            showMessage("Rolling...");
+            sfxRoll();
+
+            // Add rolling animation
+            die1El.classList.add('rolling');
+            die2El.classList.add('rolling');
+
+            // Quick timeout to simulate roll duration
+            setTimeout(() => {
+                const d1 = Math.floor(Math.random() * 6) + 1;
+                const d2 = Math.floor(Math.random() * 6) + 1;
+
+                die1El.classList.remove('rolling');
+                die2El.classList.remove('rolling');
+                
+                die1El.setAttribute('data-value', d1);
+                die2El.setAttribute('data-value', d2);
+                
+                totalEl.innerText = (d1 + d2);
+
+                resolveBets(d1, d2);
+                
+                isRolling = false;
+                rollBtn.disabled = false;
+                rollBtn.classList.remove('opacity-50');
+            }, 800);
+        }
+
+        rollBtn.addEventListener('click', doRoll);
+
+        // Keyboard: Space/Enter rolls (unless a button has focus, to avoid double-fire)
+        document.addEventListener('keydown', (e) => {
+            if (e.code !== 'Space' && e.code !== 'Enter') return;
+            const tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'BUTTON') return;
+            e.preventDefault();
+            doRoll();
+        });
+
+        // Init
+        loadState();
+        muteBtn.innerText = muted ? '🔇' : '🔊';
+        updateUI();
+
+    </script>
+</body>
+</html>
